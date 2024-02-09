@@ -1,0 +1,262 @@
+
+
+const express       = require('express');
+const session       = require('express-session');
+const passport      = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const mongoose      = require('mongoose');
+const bodyParser    = require('body-parser');
+
+// Create an Express app
+const app = express();
+
+// Connect to MongoDB
+mongoose.connect('mongodb://localhost:27017/simple_db', { useNewUrlParser: true, useUnifiedTopology: true });
+
+// Define the user schema and model
+const Schema = mongoose.Schema;
+const UserSchema = new Schema({
+    username: String,
+    password: String
+});
+const User = mongoose.model('User', UserSchema);
+
+// Configure Passport
+passport.use(new LocalStrategy(
+    function(username, password, done) {
+        User.findOne({ username: username, password: password }, function(err, user) {
+            if (err) { return done(err); }
+            if (!user) { return done(null, false); }
+            return done(null, user);
+        });
+    }
+));
+passport.serializeUser(function(user, done) {
+    done(null, user.id);
+});
+passport.deserializeUser(function(id, done) {
+    User.findById(id, function(err, user) {
+        done(err, user);
+    });
+});
+
+// Configure Express app
+app.use(session({ secret: 'secret', resave: false, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Define routes
+app.get('/', (req, res) => {
+    res.send('Welcome to the simple app');
+});
+
+app.post('/login', passport.authenticate('local', {
+    successRedirect: '/data',
+    failureRedirect: '/'
+}));
+
+app.get('/data', isAuthenticated, (req, res) => {
+    res.send('Protected data: Data 1, Data 2');
+});
+
+function isAuthenticated(req, res, next) {
+    if (req.isAuthenticated() && req.body.password === 'joe') {
+        return next();
+    }
+    res.redirect('/');
+}
+
+// Start the server
+app.listen(3001, () => {
+    console.log('Server started on http://localhost:3001');
+});
+
+
+
+
+Let's go through this code line by line, focusing on the JavaScript authentication functions, particularly those related to Passport.js:
+
+Including Dependencies
+
+javascriptCopy code
+const express = require('express');
+const session = require('express-session');
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+
+
+* express: A web framework for Node.js.
+* express-session: Middleware for session management in Express.
+* passport: Authentication middleware for Node.js.
+* passport-local: Strategy for username and password authentication in Passport.
+* mongoose: ODM (Object Data Modeling) library for MongoDB and Node.js.
+* body-parser: Middleware for parsing incoming request bodies in Express.
+
+Creating an Express App
+
+javascriptCopy code
+const app = express();
+
+
+* Initializes a new Express application.
+
+Connecting to MongoDB
+
+javascriptCopy code
+mongoose.connect('mongodb://localhost:27017/simple_db', { useNewUrlParser: true, useUnifiedTopology: true });
+
+
+* Connects to a MongoDB database named simple_db.
+
+Defining User Schema and Model
+
+javascriptCopy code
+const Schema = mongoose.Schema;
+const UserSchema = new Schema({ username: String, password: String });
+const User = mongoose.model('User', UserSchema);
+
+
+* Defines a schema for the User model with username and password fields.
+* This model represents users in the MongoDB database.
+
+Configuring Passport
+
+javascriptCopy code
+passport.use(new LocalStrategy(
+    function(username, password, done) {
+        User.findOne({ username: username, password: password }, function(err, user) {
+            if (err) { return done(err); }
+            if (!user) { return done(null, false); }
+            return done(null, user);
+        });
+    }
+));
+passport.serializeUser(function(user, done) {
+    done(null, user.id);
+});
+passport.deserializeUser(function(id, done) {
+    User.findById(id, function(err, user) {
+        done(err, user);
+    });
+});
+
+
+* Local Strategy: Defines the strategy for authentication using username and password. It checks if a user exists with the given username and password in the database.
+* serializeUser: Defines how to store the user information in the session. Here, the user's ID is stored.
+* deserializeUser: Defines how to retrieve the user information from the session. The user's ID is used to find the user in the database.
+
+Configuring Express App
+
+javascriptCopy code
+app.use(session({ secret: 'secret', resave: false, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+
+* Configures session handling, initializes Passport, and sets up body parsing for form submissions.
+
+Defining Routes
+
+javascriptCopy code
+app.get('/', (req, res) => {
+    res.send('Welcome to the simple app');
+});
+
+app.post('/login', passport.authenticate('local', {
+    successRedirect: '/data',
+    failureRedirect: '/'
+}));
+
+app.get('/data', isAuthenticated, (req, res) => {
+    res.send('Protected data: Data 1, Data 2');
+});
+
+
+* Root Route ('/'): Just sends a welcome message.
+* Login Route ('/login'): Uses Passport to authenticate users. If successful, it redirects to /data; if not, it redirects back to the root.
+* Data Route ('/data'): A protected route that displays data only if the user is authenticated.
+
+Authentication Check Function
+
+javascriptCopy code
+function isAuthenticated(req, res, next) {
+    if (req.isAuthenticated() && req.body.password === 'joe') {
+        return next();
+    }
+    res.redirect('/');
+}
+
+
+* A middleware function that checks if the user is authenticated and if the password is 'joe'. If both conditions are met, it proceeds to the next middleware; otherwise, it redirects to the root.
+
+Starting the Server
+
+javascriptCopy code
+app.listen(3001, () => {
+    console.log('Server started on http://localhost:3001');
+});
+
+
+* Starts the server on port 3001.
+
+Important Points
+
+* The authentication strategy is quite basic and not secure since it checks passwords directly against the database. In a real-world scenario, passwords should be hashed.
+* The isAuthenticated function checks the password in the request body, which is unusual and not secure for a protected route. Normally, authentication checks should rely on session data.
+* The code doesn't handle user registration or password hashing, which are important for a complete authentication system.
+
+
+
+Using Postman or similar tools is a great way to demonstrate the inner workings of Passport.js and the authentication flow in a Node.js application. Here are five workflows that you can demonstrate:
+
+1. Successful User Login
+
+* Objective: Show how a user can log in successfully.
+* Workflow:
+  * Create a POST request to http://localhost:3000/login.
+  * In the body of the request, select x-www-form-urlencoded and enter username and password fields with correct credentials (assuming you have a user 'Joe' with password 'Joe' already created in the database).
+  * Send the request and observe a successful login, which should redirect to the /protected route or return a success message.
+
+2. Failed User Login (Wrong Password)
+
+* Objective: Demonstrate how Passport.js handles incorrect passwords.
+* Workflow:
+  * Create a POST request to http://localhost:3000/login.
+  * Enter the correct username but an incorrect password.
+  * Send the request and observe the failure response, typically a redirection to the login page or an error message.
+
+3. Failed User Login (Non-existent User)
+
+* Objective: Illustrate handling of non-existent user logins.
+* Workflow:
+  * Make a POST request to http://localhost:3000/login.
+  * Enter a username that does not exist in the database.
+  * Send the request and note the failure response, which should be similar to the wrong password scenario.
+
+4. Accessing Protected Route without Authentication
+
+* Objective: Show how Passport.js protects certain routes.
+* Workflow:
+  * Create a GET request to http://localhost:3000/protected.
+  * Send the request without logging in.
+  * Observe that the request is denied or redirected since the user is not authenticated.
+
+5. Accessing Protected Route after Authentication
+
+* Objective: Demonstrate access to protected content after authentication.
+* Workflow:
+  * First, follow the workflow of a successful user login.
+  * Then, create a GET request to http://localhost:3000/protected.
+  * Send the request. Now that the session is authenticated, the server should provide access to the protected content.
+
+Additional Notes for Demonstration:
+
+* Session Handling: In Postman, ensure that cookies are enabled to handle sessions. This is important because Passport.js relies on session cookies to maintain authentication state.
+* Database Preparation: Before demonstrating, make sure the MongoDB database has at least one user (e.g., username: Joe, password: Joe) created and stored.
+* Security Considerations: Explain that in real-world scenarios, additional security measures (like HTTPS, CSRF protection) are necessary.
+
+These workflows cover the basic functionalities of Passport.js in an authentication context and provide a practical way for students to understand how user authentication works in web applications.
